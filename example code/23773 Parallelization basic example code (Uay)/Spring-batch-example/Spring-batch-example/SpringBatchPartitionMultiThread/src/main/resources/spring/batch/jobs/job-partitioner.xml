@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/batch 
+	http://www.springframework.org/schema/batch/spring-batch-2.2.xsd
+	http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+	http://www.springframework.org/schema/util 
+	http://www.springframework.org/schema/util/spring-util-3.2.xsd
+	">
+ 
+	<!-- spring batch core settings -->
+	<import resource="../config/context.xml" />
+	
+	<!-- database settings -->
+	<import resource="../config/database.xml" />
+	
+	<!-- partitioner job -->
+	<job id="partitionJob" xmlns="http://www.springframework.org/schema/batch">
+ 
+	 	<step id="cleanup" next="masterStep">
+				<batch:tasklet ref="cleanupTasklet"/>
+		</step>
+	    <!-- master step, 10 threads (grid-size)  -->
+	    <step id="masterStep">
+			<partition step="slave" partitioner="rangePartitioner">
+				<handler grid-size="10" task-executor="taskExecutor" />
+			</partition>
+	    </step>
+ 
+  	</job>
+ 
+	<!-- each thread will run this job, with different stepExecutionContext values. -->
+	<step id="slave" xmlns="http://www.springframework.org/schema/batch">
+		<tasklet>
+			<chunk reader="pagingItemReader" writer="flatFileItemWriter"
+				processor="itemProcessor" commit-interval="1" />
+		</tasklet>
+  	</step>
+  
+  	<bean id="cleanupTasklet" class="com.test.spring.batch.CleanupTasklet">
+		<constructor-arg value="csv/outputs/"/>
+	</bean>
+ 
+  	<bean id="rangePartitioner" class="com.test.spring.batch.partition.RangePartitioner">
+		<constructor-arg index="0" ref="dataSource"/>
+		<constructor-arg index="1" value="users"/>
+	</bean>
+ 
+	<bean id="taskExecutor" class="org.springframework.core.task.SimpleAsyncTaskExecutor" />
+	
+	<!-- inject stepExecutionContext -->
+ 	<bean id="itemProcessor" class="com.test.spring.batch.processor.UserProcessor" scope="step">
+		<property name="threadName" value="#{stepExecutionContext[name]}" />
+	</bean>
+ 
+	 <bean id="pagingItemReader"
+	class="org.springframework.batch.item.database.JdbcCursorItemReader"
+	scope="step">
+	<property name="dataSource" ref="dataSource" />
+		<property name="sql"
+			value="select id, user_login, user_pass, age from users limit #{stepExecutionContext[fromRow]}, #{stepExecutionContext[range]} ">	
+		</property>
+		
+		<property name="rowMapper">
+			<bean class="com.test.spring.batch.UserRowMapper" />
+		</property>
+	</bean>
+ 
+	<!-- csv file writer -->
+	<bean id="flatFileItemWriter" class="org.springframework.batch.item.file.FlatFileItemWriter"
+			scope="step" >
+		<property name="resource"
+			value="file:csv/outputs/users.processed#{stepExecutionContext[fromRow]+1}-#{stepExecutionContext[toRow]}.csv" />
+		<property name="appendAllowed" value="false" />
+		<property name="lineAggregator">
+	  		<bean
+				class="org.springframework.batch.item.file.transform.DelimitedLineAggregator">
+				<property name="delimiter" value="," />
+				<property name="fieldExtractor">
+				  	<bean
+						class="org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor">
+						<property name="names" value="id, username, password, age" />
+				  	</bean>
+				</property>
+		  	</bean>
+		</property>
+	</bean>
+ 
+</beans>
