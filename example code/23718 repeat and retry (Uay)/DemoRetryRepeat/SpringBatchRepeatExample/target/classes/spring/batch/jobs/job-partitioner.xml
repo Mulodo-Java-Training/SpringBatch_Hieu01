@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/aop
+    http://www.springframework.org/schema/aop/spring-aop.xsd
+    http://www.springframework.org/schema/batch 
+	http://www.springframework.org/schema/batch/spring-batch-2.2.xsd
+	http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+	http://www.springframework.org/schema/util 
+	http://www.springframework.org/schema/util/spring-util-3.2.xsd
+	">
+    
+    <!-- spring batch core settings -->
+	<import resource="../config/context.xml" />
+	
+	<!-- database settings -->
+	<import resource="../config/database.xml" />
+ 
+    <!-- Repeat job -->
+    <batch:job id="repeatJob" job-repository="jobRepository">
+        <batch:step id="repeatTasklet">
+            <batch:tasklet ref="taskletRepeat" />
+        </batch:step>
+    </batch:job>
+ 
+    <!-- Repeat tasklet definition -->
+    <bean id="taskletRepeat"
+        class="com.test.spring.batch.repeat.policy.RepeatTasklet">
+		<property name="repeatPolicy" ref="repeatPolicy" />
+    </bean>
+ 
+    <bean id="repeatPolicy"
+        class="com.test.spring.batch.repeat.policy.RepeatPolicy">
+		<property name="elements">
+    		<list>
+                <value>element1</value>
+                <value>element2</value>
+                <value>element3</value>
+            </list>
+        </property>
+    </bean>
+ 
+    <!-- AOP repeat configuration -->
+    <aop:config>
+        <aop:pointcut id="transactional"
+            expression="execution(* com..RepeatTasklet.execute(..))" />
+        <aop:advisor pointcut-ref="transactional"
+            advice-ref="repeatAdvice"
+            order="-1"/>
+    </aop:config>
+ 
+    <bean id="repeatAdvice"
+        class="org.springframework.batch.repeat.interceptor.RepeatOperationsInterceptor">
+		<property name="repeatOperations">
+        	<bean class="org.springframework.batch.repeat.support.RepeatTemplate">
+				<property name="completionPolicy" ref="repeatPolicy" />
+          	</bean>
+      	</property>
+    </bean>
+ 
+</beans>
