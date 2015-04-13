@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/batch 
+	http://www.springframework.org/schema/batch/spring-batch-2.2.xsd
+	http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+	http://www.springframework.org/schema/util 
+	http://www.springframework.org/schema/util/spring-util-3.2.xsd
+	">
+ 
+  <!-- spring batch core settings -->
+  <import resource="../config/context.xml" />
+ 
+  <!-- database settings -->
+  <import resource="../config/database.xml" />
+ 
+  	<batch:job id="sendMailJob" restartable="false">
+		<batch:step id="sendMailStep">
+		  	<batch:tasklet ref="sendMailManager" />
+		</batch:step>
+	</batch:job>
+	
+	<bean id="sendMailService" class="com.test.spring.batch.mail.service.SendMailService" />
+	
+	<bean id="sendMailManager" class="com.test.spring.batch.processor.SendMailTasklet">
+	    <property name="mailSender" ref="mailSender"/>
+	    <property name="sendMailService" ref="sendMailService"/>
+	    <property name="senderAddress" value=""/>
+	    <property name="recipient" value=""/>
+	</bean>
+	
+	<bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+	    <property name="host" value="smtp.googlemail.com"/>
+	    <property name="port" value="587"></property>
+	    <property name="username" value="ledanghuy1590"/>
+	    <property name="password" value="159732468"/>
+	    <property name="javaMailProperties">
+	        <props>
+	        	<prop key="mail.smtp.auth">true</prop>
+	            <prop key="mail.smtp.starttls.enable">true</prop>
+	            <prop key="mail.smtp.host">"smtp.gmail.com"</prop>
+	            <prop key="mail.smtp.port">"587"</prop>
+	            
+	        </props>
+	    </property>
+	</bean>
+ 
+
+ 
+</beans>
